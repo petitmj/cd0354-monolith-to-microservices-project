@@ -1,32 +1,42 @@
-language: node_js 
-node_js:
-  -13
-services:
-  -docker
-#pre-testing installs
-install:
-  -echo "nothing needs to be installed"
+version: 2.1
+executors:
+  my-custom-executor:
+    docker:
+      - image: cimg/base:stable
+        auth:
+          # ensure you have first added these secrets
+          # visit app.circleci.com/settings/project/github/jpetitm/cd0354-monolith-to-microservices-project/environment-variables
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PASSWORD
+jobs:
+  project3ci:
+    environment:
+      DOCKER_USERNAME: jpetitm
+      DOCKER_PASSWORD: /@CodenamedKadosh
+    executor: my-custom-executor
+    steps:
+      - checkout
+      - run: |
+          #   - docker --version # print the version for logging
+              - docker  build -t udagram-api-feed ./udagram-api-feed
+              - docker  build -t udagram-api-user ./udagram-api-user
+              - docker  build -t udagram-frontend ./udagram-frontend
+              - docker  build -t reverseproxy ./reverseproxy
 
-#scripts to be run as tests
-before_script:
-  -echo "no tests"
+              - docker tag udagram-api-feed jpetitm/udagram-api-feed:v1
+              - docker tag udagram-api-user jpetitm/udagram-api-user:v1
+              - docker tag udagram-frontend jpetitm/udagram-frontend:v1
+              - docker tag reverseproxy jpetitm/reverseproxy:v1
 
-script:
-  - docker --version # print the version for logging
-  - docker  build -t udagram-api-feed ./udagram-api-feed
-  - docker  build -t udagram-api-user ./udagram-api-user
-  - docker  build -t udagram-frontend ./udagram-frontend
-  - docker  build -t reverseproxy ./reverseproxy
+              #Tasks to perform after the process is successful. Formatting the Docker username and password as below enables you to programmatically login without having the password exposed in logs.
+            
+              - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+              - docker push jpetitm/udagram-api-feed:v1
+              - docker push jpetit/udagram-api-user:v1
+              - docker push jpetit/udagram-frontend:v1
+              - docker push jpetit/reverseproxy:v1
 
-  - docker tag udagram-api-feed jpetitm/udagram-api-feed:v1
-  - docker tag udagram-api-user jpetitm/udagram-api-user:v1
-  - docker tag udagram-frontend jpetitm/udagram-frontend:v1
-  - docker tag reverseproxy jpetitm/reverseproxy:v1
-
-#Tasks to perform after the process is successful. Formatting the Docker username and password as below enables you to programmatically login without having the password exposed in logs.
-after_success:
-  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-  - docker push jpetitm/udagram-api-feed:v1
-  - docker push jpetit/udagram-api-user:v1
-  - docker push jpetit/udagram-frontend:v1
-  - docker push jpetit/reverseproxy:v1
+workflows:
+  my-custom-workflow:
+    jobs:
+      - project3ci
